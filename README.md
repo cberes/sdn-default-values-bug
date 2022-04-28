@@ -1,46 +1,38 @@
-# sdn-dynamic-labels-bug
+# sdn-default-values-bug
 
-[SDN](https://github.com/spring-projects/spring-data-neo4j) is unable to instantiate nodes with multiple levels of
-inheritance and a non-empty `@DynamicLabels` field.
+[SDN](https://github.com/spring-projects/spring-data-neo4j) does not respect default values set in entities.
 
-For example, say you have super class
+For example, say you have an entity like this
 
     @Getter
+    @Setter
     @Node
-    public abstract class Animal {
-      @DynamicLabels
-      private Set<String> labels = new TreeSet<>();
+    public abstract class MyNode {
+      @Property("name")
+      private String name;
+
+      @Property("active")
+      private boolean active = true;
+
+      @Property("age")
+      private Integer age = 25;
     }
 
-A sub class
+And you create a new node without the `active` and `age` properties
 
-    @Node
-    public abstract class Feline extends Animal {
+    CREATE (:MyNode {id: '123', name: 'Nikola Tesla'})
+
+When you query for the node, `active` will be `false` and `age` will be `null`
+
+    MyNode found = myNodeRepository.findById("123").get();
+    if (!found.isActive()) {                // active is false but it should be true
+      found.setAge(found.getAge() - 1);     // age is null: NullPointerException
     }
 
-And a sub class of the sub class
+This example has never worked correctly in SDN as far as I know. Specifically I tried this with 6.3.1 and 6.2.0.
 
-    @Node
-    public class Cat extends Feline {
-    }
-
-You can query for instances of the `Cat` sub class only if they do not have a dynamic label
-
-
-    Cat cat1 = new Cat();
-    animalRepository.save(cat1);
-
-    Cat cat2 = new Cat();
-    cat2.getLabels().add("Orange");
-    animalRepository.save(cat2);
-
-    Cat found1 = (Cat) animalRepository.findById(cat1.getId()).get(); // this is fine
-    Cat found2 = (Cat) animalRepository.findById(cat2.getId()).get(); // BeanInstantiationException
-
-The second query fails if the `Feline` sub class is abstract or concrete, though the exception is different.
-
-This example worked correctly in SDN 6.2.1 but it fails with SDN 6.2.4.
-
+However, this differs from OGM, which uses the default values set in an entity.
+The tests in this project would pass if run using OGM.
 
 ## Requirements
 
@@ -48,5 +40,5 @@ Don't forget to set database credentials in [application.properties](src/main/re
 
 ## Tests
 
-Run [tests](src/test/java/com/example/relationshipbug/DynamicLabelsTest.java) via `mvn clean install` or via an IDE.
+Run [tests](src/test/java/com/example/relationshipbug/DefaultValuesTest.java) via `mvn clean install` or via an IDE.
 

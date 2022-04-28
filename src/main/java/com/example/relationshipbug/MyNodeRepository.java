@@ -2,5 +2,5 @@ package com.example.relationshipbug;
 
 import org.springframework.data.neo4j.repository.Neo4jRepository;
 
-public interface AnimalRepository extends Neo4jRepository<Animal, String> {
+public interface MyNodeRepository extends Neo4jRepository<MyNode, String> {
 }
